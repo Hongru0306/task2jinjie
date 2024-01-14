@@ -1,122 +1,65 @@
-"""
-This script refers to the dialogue example of streamlit, the interactive generation code of chatglm2 and transformers.
-We mainly modified part of the code logic to adapt to the generation of our model.
-Please refer to these links below for more information:
-    1. streamlit chat example: https://docs.streamlit.io/knowledge-base/tutorials/build-conversational-apps
-    2. chatglm2: https://github.com/THUDM/ChatGLM2-6B
-    3. transformers: https://github.com/huggingface/transformers
-"""
-
-from dataclasses import asdict
-
-import streamlit as st
+# 导入所需的库
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers.utils import logging
-from modelscope import snapshot_download, AutoModel, AutoTokenizer
+import streamlit as st
 
-from interface import GenerationConfig, generate_interactive
+from modelscope import snapshot_download
 
-logger = logging.get_logger(__name__)
+# 在侧边栏中创建一个标题和一个链接
+with st.sidebar:
+    st.markdown("## InternLM LLM")
+    "[InternLM](https://github.com/InternLM/InternLM.git)"
+    "[开源大模型食用指南 self-llm](https://github.com/datawhalechina/self-llm.git)"
+    "[Chat嬛嬛](https://github.com/KMnO4-zx/huanhuan-chat.git)"
+    # 创建一个滑块，用于选择最大长度，范围在0到1024之间，默认值为512
+    max_length = st.slider("max_length", 0, 1024, 512, step=1)
+    system_prompt = st.text_input("System_Prompt", "现在你要扮演皇帝身边的女人--甄嬛")
 
+# 创建一个标题和一个副标题
+st.title("💬 Chat-嬛嬛")
+st.caption("🚀 A streamlit chatbot powered by Self-LLM")
 
-def on_btn_click():
-    del st.session_state.messages
+# 定义模型路径
 
-model_id = 'xhr003061/self-internlm-demo'
+model_id = 'kmno4zx/huanhuan-chat'
 
-model_name_or_path = snapshot_download(model_id, revision='master')
+mode_name_or_path = snapshot_download(model_id, revision='master')
 
+# 定义一个函数，用于获取模型和tokenizer
 @st.cache_resource
-def load_model():
-    model = (
-        AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
-        .to(torch.bfloat16)
-        .cuda()
-    )
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
-    return model, tokenizer
+def get_model():
+    # 从预训练的模型中获取tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(mode_name_or_path, trust_remote_code=True)
+    # 从预训练的模型中获取模型，并设置模型参数
+    model = AutoModelForCausalLM.from_pretrained(mode_name_or_path, device_map='auto', torch_dtype=torch.bfloat16, trust_remote_code=True).eval()
+    # Specify hyperparameters for generation
+    model.generation_config = GenerationConfig.from_pretrained(mode_name_or_path, trust_remote_code=True) # 可指定不同的生成长度、top_p等相关超参
+    # 设置模型为评估模式
+    model.eval()  
+    return tokenizer, model
 
+# 加载Chatglm3的model和tokenizer
+tokenizer, model = get_model()
 
-def prepare_generation_config():
-    with st.sidebar:
-        max_length = st.slider("Max Length", min_value=32, max_value=2048, value=2048)
-        top_p = st.slider("Top P", 0.0, 1.0, 0.8, step=0.01)
-        temperature = st.slider("Temperature", 0.0, 1.0, 0.7, step=0.01)
-        st.button("Clear Chat History", on_click=on_btn_click)
+# 如果session_state中没有"messages"，则创建一个包含默认消息的列表
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-    generation_config = GenerationConfig(max_length=max_length, top_p=top_p, temperature=temperature)
+# 遍历session_state中的所有消息，并显示在聊天界面上
+for msg in st.session_state.messages:
+    st.chat_message("user").write(msg[0])
+    st.chat_message("assistant").write(msg[1])
 
-    return generation_config
-
-
-user_prompt = "<|User|>:{user}\n"
-robot_prompt = "<|Bot|>:{robot}<eoa>\n"
-cur_query_prompt = "<|User|>:{user}<eoh>\n<|Bot|>:"
-
-
-def combine_history(prompt):
-    messages = st.session_state.messages
-    total_prompt = ""
-    for message in messages:
-        cur_content = message["content"]
-        if message["role"] == "user":
-            cur_prompt = user_prompt.replace("{user}", cur_content)
-        elif message["role"] == "robot":
-            cur_prompt = robot_prompt.replace("{robot}", cur_content)
-        else:
-            raise RuntimeError
-        total_prompt += cur_prompt
-    total_prompt = total_prompt + cur_query_prompt.replace("{user}", prompt)
-    return total_prompt
-
-
-def main():
-    # torch.cuda.empty_cache()
-    print("load model begin.")
-    model, tokenizer = load_model()
-    print("load model end.")
-
-    user_avator = "doc/imgs/user.png"
-    robot_avator = "doc/imgs/robot.png"
-
-    st.title("InternLM-Chat-7B")
-
-    generation_config = prepare_generation_config()
-
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"], avatar=message.get("avatar")):
-            st.markdown(message["content"])
-
-    # Accept user input
-    if prompt := st.chat_input("What is up?"):
-        # Display user message in chat message container
-        with st.chat_message("user", avatar=user_avator):
-            st.markdown(prompt)
-        real_prompt = combine_history(prompt)
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt, "avatar": user_avator})
-
-        with st.chat_message("robot", avatar=robot_avator):
-            message_placeholder = st.empty()
-            for cur_response in generate_interactive(
-                model=model,
-                tokenizer=tokenizer,
-                prompt=real_prompt,
-                additional_eos_token_id=103028,
-                **asdict(generation_config),
-            ):
-                # Display robot response in chat message container
-                message_placeholder.markdown(cur_response + "▌")
-            message_placeholder.markdown(cur_response)
-        # Add robot response to chat history
-        st.session_state.messages.append({"role": "robot", "content": cur_response, "avatar": robot_avator})
-        torch.cuda.empty_cache()
+# 如果用户在聊天输入框中输入了内容，则执行以下操作
+if prompt := st.chat_input():
+    # 在聊天界面上显示用户的输入
+    st.chat_message("user").write(prompt)
+    # 构建输入     
+    response, history = model.chat(tokenizer, prompt, system=system_prompt, history=st.session_state.messages)
+    # 将模型的输出添加到session_state中的messages列表中
+    st.session_state.messages.append((prompt, response))
+    # 在聊天界面上显示模型的输出
+    st.chat_message("assistant").write(response)
 
 
 main()
