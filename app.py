@@ -61,5 +61,3 @@ if prompt := st.chat_input():
     # 在聊天界面上显示模型的输出
     st.chat_message("assistant").write(response)
 
-
-main()
