@@ -15,7 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.utils import logging
 from modelscope import snapshot_download, AutoModel, AutoTokenizer
 
-from tools.transformers.interface import GenerationConfig, generate_interactive
+from interface import GenerationConfig, generate_interactive
 
 logger = logging.get_logger(__name__)
 
