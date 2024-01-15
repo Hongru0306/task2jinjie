@@ -30,7 +30,7 @@ model_name_or_path = snapshot_download(model_id, revision='master')
 @st.cache_resource
 def load_model():
     model = (
-        AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True)
+        AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True, low_cpu_mem_usage=True)
         .to(torch.bfloat16)
         .cuda()
     )
