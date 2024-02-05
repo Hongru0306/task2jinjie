@@ -23,7 +23,7 @@ logger = logging.get_logger(__name__)
 def on_btn_click():
     del st.session_state.messages
 
-model_id = 'xhr003061/self-internlm-demo'
+model_id = 'Shanghai_AI_Laboratory/internlm2-math-7b'
 
 model_name_or_path = snapshot_download(model_id, revision='master')
 
