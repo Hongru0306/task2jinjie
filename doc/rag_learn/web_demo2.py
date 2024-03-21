@@ -6,6 +6,7 @@ from RAG.VectorBase import VectorStore
 from RAG.utils import ReadFiles
 from RAG.LLM import OpenAIChat, InternLMChat
 from RAG.Embeddings import JinaEmbedding, ZhipuEmbedding
+from modelscope import snapshot_download
 import os
 
 
@@ -27,7 +28,9 @@ st.title("💬 Construction Chatbot")
 st.caption("🚀 A streamlit chatbot powered by internLM2")
 
 # 定义模型路径
-mode_name_or_path = '/CV/xhr_project/llm/model/internlm2-chat-7b/Shanghai_AI_Laboratory/internlm2-chat-7b'
+model_id = 'Shanghai_AI_Laboratory/internlm2-math-7b'
+
+model_name_or_path = snapshot_download(model_id, revision='master')
 
 @st.cache_resource
 def load_model(mode_name_or_path):
