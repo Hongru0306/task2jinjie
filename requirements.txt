@@ -5,3 +5,16 @@ sentencepiece==0.1.99
 accelerate==0.24.1
 transformers_stream_generator==0.0.4
 tiktoken
+openai
+zhipuai
+numpy
+python-dotenv
+torch
+torchvision
+torchaudio
+transformers
+tqdm
+PyPDF2
+markdown
+html2text
+tiktoken
